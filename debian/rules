@@ -22,7 +22,7 @@ include /usr/share/dpkg/default.mk
 	dh $@ --with autotools_dev
 
 override_dh_auto_configure:
-	./autogen.sh --no-geoip
+	./autogen.sh
 	./configure --prefix=/usr --disable-integration-tests
 
 override_dh_auto_build:
