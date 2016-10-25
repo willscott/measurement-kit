@@ -28,6 +28,7 @@ Vagrant.configure(2) do |config|
       git clone --single-branch --depth 1 --branch debian                      \
         https://github.com/measurement-kit/measurement-kit
       cd measurement-kit
+      ./autogen.sh
       # See <http://askubuntu.com/a/675211>
       dpkg-buildpackage -b -rfakeroot -us -uc
     SHELL
