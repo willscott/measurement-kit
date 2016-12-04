@@ -3,7 +3,7 @@
 # information on the copying conditions.
 
 # Autoconf requirements
-AC_INIT(measurement_kit, 0.3.5, bassosimone@gmail.com)
+AC_INIT(measurement_kit, 0.3.8, bassosimone@gmail.com)
 
 # information on the package
 AC_CONFIG_SRCDIR([Makefile.am])
@@ -24,14 +24,23 @@ MK_AM_ADD_COVERAGE_FLAGS_IF_NEEDED
 MK_AM_DISABLE_BINARIES
 MK_AM_DISABLE_EXAMPLES
 MK_AM_DISABLE_INTEGRATION_TESTS
+MK_AM_DISABLE_TRACEROUTE
 
 # See above comment
 AC_PROG_CXX
 
 # Must set -pthread before testing for -levent_pthreads
-CFLAGS="$CFLAGS -pthread"
-CXXFLAGS="$CXXFLAGS -pthread"
-LDFLAGS="$LDFLAGS -pthread"
+if test "`uname`" != "Darwin"; then
+  CFLAGS="$CFLAGS -pthread"
+  CXXFLAGS="$CXXFLAGS -pthread"
+  LDFLAGS="$LDFLAGS -pthread"
+fi
+
+# On my macOS at least `/usr/local` is not in -I and -L (odd...)
+if test "`uname`" = "Darwin"; then
+  CPPFLAGS="$CPPFLAGS -I/usr/local/include"
+  LDFLAGS="$LDFLAGS -L/usr/local/lib"
+fi
 
 MK_AM_CHECK_LIBC_FUNCS
 MK_AM_OPENSSL
