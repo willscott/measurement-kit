@@ -11,10 +11,10 @@ namespace ndt {
 namespace test_c2s {
 
 template <MK_MOCK_NAMESPACE(net, connect)>
-void coroutine_impl(std::string address, int port, double runtime,
+void coroutine_impl(Var<Entry> report_entry, std::string address, int port, double runtime,
                     Callback<Error, Continuation<Error>> cb, double timeout,
-                    Settings settings, Var<Logger> logger,
-                    Var<Reactor> reactor) {
+                    Settings settings, Var<Reactor> reactor,
+                    Var<Logger> logger) {
 
     // Performance note: This implementation does some string copies
     // when sending but in localhost testing this does not seem to be
@@ -39,32 +39,33 @@ void coroutine_impl(std::string address, int port, double runtime,
                         cb(err, nullptr);
                         return;
                     }
+                    ErrorOr<double> ctime = net::get_connect_time(err);
+                    if (!!ctime) {
+                        (*report_entry)["connect_times"].push_back(*ctime);
+                    }
                     logger->info("Connected to %s:%d", address.c_str(), port);
                     logger->debug("ndt: suspend coroutine");
                     cb(NoError(), [=](Callback<Error> cb) {
                         double begin = time_now();
-                        Var<double> previous(new double(begin));
-                        Var<size_t> count(new size_t(0));
+                        Var<MeasureSpeed> snap(new MeasureSpeed(0.5));
                         logger->debug("ndt: resume coroutine");
                         logger->info("Starting upload");
-                        log_speed(logger, "upload-speed", 0.0, 0.0);
                         txp->set_timeout(timeout);
                         txp->on_flush([=]() {
                             double now = time_now();
-                            if (now - *previous > 0.5) {
-                                double el = now - begin;
-                                double x = (*count * 8) / 1000 / (now - *previous);
-                                *previous = now;
-                                *count = 0;
-                                log_speed(logger, "upload-speed", el, x);
-                            }
+                            snap->maybe_speed(now, [&](double el, double x) {
+                                log_speed(logger, "upload-speed", 1, el, x);
+                                (*report_entry)["sender_data"].push_back({
+                                    el, x
+                                });
+                            });
                             if (now - begin > runtime) {
                                 logger->info("Elapsed enough time");
                                 txp->emit_error(NoError());
                                 return;
                             }
                             txp->write(str.data(), str.size());
-                            *count += str.size();
+                            snap->total += str.size();
                         });
                         txp->on_error([=](Error err) {
                             logger->info("Ending upload (%d)", (int)err);
@@ -77,7 +78,7 @@ void coroutine_impl(std::string address, int port, double runtime,
                         txp->write(str.data(), str.size());
                     });
                 },
-                settings, logger, reactor);
+                settings, reactor, logger);
 }
 
 template <MK_MOCK_NAMESPACE_SUFFIX(messages, read_msg, first),
@@ -105,10 +106,16 @@ void run_impl(Var<Context> ctx, Callback<Error> callback) {
             return;
         }
 
+        Var<Entry> cur_entry(new Entry);
+        (*cur_entry)["connect_times"] = Entry::array();
+        (*cur_entry)["params"] = {{"num_streams", 1}};
+        (*cur_entry)["receiver_data"] = {{"avg_speed", nullptr}};
+        (*cur_entry)["sender_data"] = Entry::array();
+
         // We connect to the port and wait for coroutine to pause
         ctx->logger->debug("ndt: start c2s coroutine ...");
         coroutine(
-            ctx->address, *port, TEST_C2S_DURATION,
+            cur_entry, ctx->address, *port, TEST_C2S_DURATION,
             [=](Error err, Continuation<Error> cc) {
                 ctx->logger->debug("ndt: start c2s coroutine ... %d", (int)err);
                 if (err) {
@@ -161,6 +168,13 @@ void run_impl(Var<Context> ctx, Callback<Error> callback) {
                                 "C2S speed calculated by server: %s kbit/s",
                                 s.c_str());
 
+                            ErrorOr<double> x =
+                                lexical_cast_noexcept<double>(s);
+                            if (!!x) {
+                                (*cur_entry)["receiver_data"]["avg_speed"] = *x;
+                            }
+                            (*ctx->entry)["test_c2s"].push_back(*cur_entry);
+
                             // The server sends us the FINALIZE message
                             ctx->logger->debug("ndt: recv TEST_FINALIZE ...");
                             messages_read_msg_fourth(
@@ -184,7 +198,7 @@ void run_impl(Var<Context> ctx, Callback<Error> callback) {
                     });
                 }, ctx->reactor);
             },
-            ctx->timeout, ctx->settings, ctx->logger, ctx->reactor);
+            ctx->timeout, ctx->settings, ctx->reactor, ctx->logger);
     }, ctx->reactor);
 }
 
