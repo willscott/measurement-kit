@@ -16,7 +16,7 @@ Vagrant.configure(2) do |config|
     deb_package.vm.provision "shell", inline: <<-SHELL
       sudo apt-get install -y autotools-dev debhelper devscripts lintian       \
         autoconf automake libtool libssl-dev libevent-dev libgeoip-dev git
-      git clone --single-branch --depth 1 --branch debian                      \
+      git clone --single-branch --depth 3 --branch debian                      \
         https://github.com/measurement-kit/measurement-kit
       cd measurement-kit
       ./autogen.sh
