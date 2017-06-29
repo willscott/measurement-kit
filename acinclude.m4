@@ -30,6 +30,13 @@ AC_DEFUN([MK_AM_DISABLE_BINARIES], [
   AM_CONDITIONAL([BUILD_BINARIES], [test "$enable_binaries" = "yes"])
 ])
 
+AC_DEFUN([MK_AM_DISABLE_TESTS], [
+  AC_ARG_ENABLE([tests],
+    AS_HELP_STRING([--disable-tests, skip building tests]),
+                   [], [enable_tests=no])
+  AM_CONDITIONAL([BUILD_TESTS], [test "$enable_tests" != "no"])
+])
+
 AC_DEFUN([MK_AM_DISABLE_INTEGRATION_TESTS], [
   AC_ARG_ENABLE([integration-tests],
     AS_HELP_STRING([--disable-integration-tests, skip building of integration tests]),
