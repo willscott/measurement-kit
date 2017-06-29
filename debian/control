@@ -1,7 +1,7 @@
 Source: measurement-kit
 Priority: optional
 Maintainer: Simone Basso <bassosimone@gmail.com>
-Build-Depends: debhelper (>= 9), autotools-dev, libssl-dev, libevent-dev, libgeoip-dev
+Build-Depends: debhelper (>= 10), autotools-dev, libssl-dev, libevent-dev, libgeoip-dev
 Standards-Version: 3.9.5
 Section: libs
 Homepage: https://github.com/measurement-kit/measurement-kit/
@@ -12,15 +12,15 @@ Package: libmeasurement-kit-dev
 Section: libdevel
 Architecture: any
 Depends: libmeasurement-kit0 (= ${binary:Version}), ${misc:Depends}
-Description: Portable C++11 network measurement library
- MeasurementKit is a network measurement library written in C++11 that
+Description: Portable C++14 network measurement library
+ MeasurementKit is a network measurement library written in C++14 that
  implements network censorship tests (e.g. several OONI tests), and network
  performance tests (e.g. NDT).
 
 Package: libmeasurement-kit0
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, libgeoip1 (>= 1.6.0), libevent-2.0-5, libssl1.0.0
-Description: Portable C++11 network measurement library
- MeasurementKit is a network measurement library written in C++11 that
+Description: Portable C++14 network measurement library
+ MeasurementKit is a network measurement library written in C++14 that
  implements network censorship tests (e.g. several OONI tests), and network
  performance tests (e.g. NDT).
