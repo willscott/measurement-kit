@@ -2,7 +2,7 @@
 // Measurement-kit is free software. See AUTHORS and LICENSE for more
 // information on the copying conditions.
 
-#include "src/libmeasurement_kit/libevent/listen.hpp"
+#include "private/libevent/listen.hpp"
 #include <functional>
 #include <iostream>
 #include <measurement_kit/common.hpp>
@@ -43,7 +43,8 @@ int main(int argc, char **argv) {
 
     loop_with_initial_event([&addr, &port]() {
         listen4(addr, port, [](bufferevent *bev) {
-            Var<Transport> transport(Connection::make(bev));
+            Var<Transport> transport(Connection::make(bev,
+                Reactor::global(), Logger::global()));
             transport->on_data([transport](Buffer) {
                 /* nothing */
             });

@@ -2,6 +2,8 @@
 // Measurement-kit is free software. See AUTHORS and LICENSE for more
 // information on the copying conditions.
 
+#include "private/nettests/runnable.hpp"
+
 #include <measurement_kit/nettests.hpp>
 #include <measurement_kit/ooni.hpp>
 
@@ -11,7 +13,7 @@ namespace nettests {
 TcpConnectTest::TcpConnectTest() : BaseTest() {
     runnable.reset(new TcpConnectRunnable);
     runnable->test_name = "tcp_connect";
-    runnable->test_version = "0.0.1";
+    runnable->test_version = "0.1.0";
     runnable->needs_input = true;
 }
 

@@ -2,7 +2,7 @@
 // Measurement-kit is free software. See AUTHORS and LICENSE for more
 // information on the copying conditions.
 
-#include "../net/ssl_context_impl.hpp"
+#include "private/net/ssl_context_impl.hpp"
 
 namespace mk {
 namespace net {
@@ -19,6 +19,7 @@ ErrorOr<SSL *> SslContext::get_client_ssl(std::string hostname) {
         singleton.reset(new SslContext);
         ErrorOr<SSL_CTX *> maybe_ctx = make_ssl_ctx(path);
         if (!maybe_ctx) {
+            singleton.reset();
             return maybe_ctx.as_error();
         }
         singleton->ctx = *maybe_ctx;

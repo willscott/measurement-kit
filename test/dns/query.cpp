@@ -3,9 +3,9 @@
 // information on the copying conditions.
 
 #define CATCH_CONFIG_MAIN
-#include "../src/libmeasurement_kit/ext/catch.hpp"
+#include "private/ext/catch.hpp"
 
-#include "../src/libmeasurement_kit/libevent/dns_impl.hpp"
+#include "private/libevent/dns_impl.hpp"
 
 using namespace mk;
 using namespace mk::dns;
@@ -192,22 +192,83 @@ TEST_CASE("dns::query deals with inet_pton returning 0") {
 
 TEST_CASE("dns::query raises if the query is unsupported") {
     query("IN", "MX", "www.neubot.org",
-          [](Error e, Var<Message>) { REQUIRE(e == UnsupportedTypeError()); });
+          [](Error e, Var<Message>) { REQUIRE(e == UnsupportedTypeError()); },
+          {{"dns/engine", "libevent"}});
 }
 
 TEST_CASE("dns::query raises if the class is unsupported") {
     query("CS", "A", "www.neubot.org",
-          [](Error e, Var<Message>) { REQUIRE(e == UnsupportedClassError()); });
+          [](Error e, Var<Message>) { REQUIRE(e == UnsupportedClassError()); },
+          {{"dns/engine", "libevent"}});
 }
 
 TEST_CASE("dns::query deals with invalid PTR name") {
     // This should be enough to see the failure, more tests for the
     // parser for PTR addresses are in test/common/utils.cpp
     query("IN", "PTR", "xx",
-          [](Error e, Var<Message>) { REQUIRE(e == InvalidNameForPTRError()); });
+          [](Error e, Var<Message>) { REQUIRE(e == InvalidNameForPTRError()); },
+          {{"dns/engine", "libevent"}});
 }
 
 #ifdef ENABLE_INTEGRATION_TESTS
+
+// Test resolve_hostname
+
+TEST_CASE("resolve_hostname works with IPv4 address") {
+    Var<Reactor> reactor = Reactor::make();
+    reactor->loop_with_initial_event([=]() {
+        std::string hostname = "130.192.16.172";
+        resolve_hostname(hostname, [=](ResolveHostnameResult r) {
+            REQUIRE(r.inet_pton_ipv4);
+            REQUIRE(r.addresses.size() == 1);
+            REQUIRE(r.addresses[0] == hostname);
+            reactor->stop();
+        }, {}, reactor);
+    });
+}
+
+TEST_CASE("resolve_hostname works with IPv6 address") {
+    Var<Reactor> reactor = Reactor::make();
+    reactor->loop_with_initial_event([=]() {
+        std::string hostname = "2a00:1450:400d:807::200e";
+        resolve_hostname(hostname, [=](ResolveHostnameResult r) {
+            REQUIRE(r.inet_pton_ipv6);
+            REQUIRE(r.addresses.size() == 1);
+            REQUIRE(r.addresses[0] == hostname);
+            reactor->stop();
+        }, {}, reactor);
+    });
+}
+
+TEST_CASE("resolve_hostname works with domain") {
+    Var<Reactor> reactor = Reactor::make();
+    reactor->loop_with_initial_event([=]() {
+        resolve_hostname("google.com", [=](ResolveHostnameResult r) {
+            REQUIRE(not r.inet_pton_ipv4);
+            REQUIRE(not r.inet_pton_ipv6);
+            REQUIRE(not r.ipv4_err);
+            REQUIRE(not r.ipv6_err);
+            // At least one IPv4 and one IPv6 addresses
+            REQUIRE(r.addresses.size() > 1);
+            reactor->stop();
+        }, {}, reactor);
+    });
+}
+
+TEST_CASE("stress resolve_hostname with invalid address and domain") {
+    Var<Reactor> reactor = Reactor::make();
+    reactor->loop_with_initial_event([=]() {
+        // Pass input that is neither invalid IPvX nor valid domain
+        resolve_hostname("192.1688.antani", [=](ResolveHostnameResult r) {
+            REQUIRE(not r.inet_pton_ipv4);
+            REQUIRE(not r.inet_pton_ipv6);
+            REQUIRE(r.ipv4_err);
+            REQUIRE(r.ipv6_err);
+            REQUIRE(r.addresses.size() == 0);
+            reactor->stop();
+        }, {}, reactor);
+    });
+}
 
 // Integration (or regress?) tests for dns::query.
 //
@@ -215,7 +276,7 @@ TEST_CASE("dns::query deals with invalid PTR name") {
 // we are not connected to the 'Net.
 //
 
-TEST_CASE("The system resolver works as expected") {
+TEST_CASE("The libevent resolver works as expected") {
 
     //
     // Note: this test also makes sure that we get sensible
@@ -231,7 +292,7 @@ TEST_CASE("The system resolver works as expected") {
             REQUIRE(message->rtt > 0.0);
             REQUIRE(message->answers[0].ttl > 0);
             break_loop();
-        });
+        }, {{"dns/engine", "libevent"}});
     });
 
     loop_with_initial_event([]() {
@@ -244,7 +305,7 @@ TEST_CASE("The system resolver works as expected") {
                 REQUIRE(message->rtt > 0.0);
                 REQUIRE(message->answers[0].ttl > 0);
                 break_loop();
-            });
+            }, {{"dns/engine", "libevent"}});
     });
 
     loop_with_initial_event([]() {
@@ -257,7 +318,7 @@ TEST_CASE("The system resolver works as expected") {
             REQUIRE(message->rtt > 0.0);
             REQUIRE(message->answers[0].ttl > 0);
             break_loop();
-        });
+        }, {{"dns/engine", "libevent"}});
     });
 
     loop_with_initial_event([]() {
@@ -270,14 +331,13 @@ TEST_CASE("The system resolver works as expected") {
                   REQUIRE(message->answers[0].ttl > 0);
                   auto found = false;
                   for (auto answer : message->answers) {
-                      if (answer.ipv6 == "2001:858:2:2:aabb::563b:1e28" or
-                          answer.ipv6 == "2001:858:2:2:aabb:0:563b:1e28") {
+                      if (answer.ipv6 != "") {
                           found = true;
                       }
                   }
                   REQUIRE(found);
                   break_loop();
-              });
+              }, {{"dns/engine", "libevent"}});
     });
 
     loop_with_initial_event([]() {
@@ -290,7 +350,7 @@ TEST_CASE("The system resolver works as expected") {
                   REQUIRE(message->rtt > 0.0);
                   REQUIRE(message->answers[0].ttl > 0);
                   break_loop();
-              });
+              }, {{"dns/engine", "libevent"}});
     });
 
     loop_with_initial_event([]() {
@@ -304,7 +364,7 @@ TEST_CASE("The system resolver works as expected") {
                   REQUIRE(message->rtt > 0.0);
                   REQUIRE(message->answers[0].ttl > 0);
                   break_loop();
-              });
+              }, {{"dns/engine", "libevent"}});
     });
 }
 

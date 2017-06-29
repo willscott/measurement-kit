@@ -6,13 +6,13 @@
 #include "config.h" // For MK_CA_BUNDLE
 #endif
 
-#include "../net/connect_impl.hpp"
-#include "../net/emitter.hpp"
-#include "../net/socks5.hpp"
-#include "../net/utils.hpp"
+#include "private/net/connect_impl.hpp"
+#include "private/net/emitter.hpp"
+#include "private/net/socks5.hpp"
+#include "private/net/utils.hpp"
 
-#include "../libevent/connection.hpp"
-#include "../net/ssl_context.hpp"
+#include "private/libevent/connection.hpp"
+#include "private/net/ssl_context.hpp"
 
 #include <measurement_kit/dns.hpp>
 #include <measurement_kit/net.hpp>
@@ -87,73 +87,13 @@ void connect_first_of(Var<ConnectResult> result, int port,
                  timeout, reactor, logger);
 }
 
-void resolve_hostname(std::string hostname, ResolveHostnameCb cb,
-                      Settings settings, Var<Reactor> reactor,
-                      Var<Logger> logger) {
-
-    logger->debug("resolve_hostname: %s", hostname.c_str());
-
-    sockaddr_storage storage;
-    Var<ResolveHostnameResult> result(new ResolveHostnameResult);
-
-    // If address is a valid IPv4 address, connect directly
-    memset(&storage, 0, sizeof storage);
-    if (inet_pton(PF_INET, hostname.c_str(), &storage) == 1) {
-        logger->debug("resolve_hostname: is valid ipv4");
-        result->addresses.push_back(hostname);
-        result->inet_pton_ipv4 = true;
-        cb(*result);
-        return;
-    }
-
-    // If address is a valid IPv6 address, connect directly
-    memset(&storage, 0, sizeof storage);
-    if (inet_pton(PF_INET6, hostname.c_str(), &storage) == 1) {
-        logger->debug("resolve_hostname: is valid ipv6");
-        result->addresses.push_back(hostname);
-        result->inet_pton_ipv6 = true;
-        cb(*result);
-        return;
-    }
-
-    logger->debug("resolve_hostname: ipv4...");
-
-    dns::query("IN", "A", hostname,
-               [=](Error err, Var<dns::Message> resp) {
-                   logger->debug("resolve_hostname: ipv4... done");
-                   result->ipv4_err = err;
-                   if (!err) {
-                       result->ipv4_reply = *resp;
-                       for (dns::Answer answer : resp->answers) {
-                           result->addresses.push_back(answer.ipv4);
-                       }
-                   }
-                   logger->debug("resolve_hostname: ipv6...");
-                   dns::query(
-                       "IN", "AAAA", hostname,
-                       [=](Error err, Var<dns::Message> resp) {
-                           logger->debug("resolve_hostname: ipv6... done");
-                           result->ipv6_err = err;
-                           if (!err) {
-                               result->ipv6_reply = *resp;
-                               for (dns::Answer answer : resp->answers) {
-                                   result->addresses.push_back(answer.ipv6);
-                               }
-                           }
-                           cb(*result);
-                       },
-                       settings, reactor, logger);
-               },
-               settings, reactor, logger);
-}
-
 void connect_logic(std::string hostname, int port,
                    Callback<Error, Var<ConnectResult>> cb, Settings settings,
                    Var<Reactor> reactor, Var<Logger> logger) {
 
     Var<ConnectResult> result(new ConnectResult);
-    resolve_hostname(hostname,
-                     [=](ResolveHostnameResult r) {
+    dns::resolve_hostname(hostname,
+                     [=](dns::ResolveHostnameResult r) {
 
                          result->resolve_result = r;
                          if (result->resolve_result.addresses.size() <= 0) {
@@ -166,11 +106,19 @@ void connect_logic(std::string hostname, int port,
                              [=](std::vector<Error> e, bufferevent *b) {
                                  result->connect_result = e;
                                  result->connected_bev = b;
-                                 Error connect_error = ConnectFailedError();
-                                 for (auto se: e) {
-                                    connect_error.add_child_error(se);
-                                 }
                                  if (!b) {
+                                     if (e.size() == 1) {
+                                         // Improvement: do not hide the reason
+                                         // why we failed if we have just one
+                                         // connect() attempt in the vector
+                                         cb(e[0], result);
+                                         return;
+                                     }
+                                     // Otherwise, report them all
+                                     Error connect_error = ConnectFailedError();
+                                     for (auto se: e) {
+                                         connect_error.add_child_error(se);
+                                     }
                                      cb(connect_error, result);
                                      return;
                                  }
@@ -268,7 +216,7 @@ void connect(std::string address, int port,
              Callback<Error, Var<Transport>> callback, Settings settings,
              Var<Reactor> reactor, Var<Logger> logger) {
     if (settings.find("net/dumb_transport") != settings.end()) {
-        callback(NoError(), Var<Transport>(new Emitter(logger)));
+        callback(NoError(), Var<Transport>(new Emitter(reactor, logger)));
         return;
     }
     if (settings.find("net/socks5_proxy") != settings.end()) {
@@ -296,7 +244,7 @@ void connect(std::string address, int port,
                 if (settings.find("net/ca_bundle_path") != settings.end()) {
                     cbp = settings.at("net/ca_bundle_path");
                 }
-                logger->debug("ca_bundle_path: %s", cbp.c_str());
+                logger->debug("ca_bundle_path: '%s'", cbp.c_str());
                 ErrorOr<Var<SslContext>> ssl_context = SslContext::make(cbp);
                 if (!ssl_context) {
                     Error err = ssl_context.as_error();
@@ -313,13 +261,57 @@ void connect(std::string address, int port,
                     callback(err, nullptr);
                     return;
                 }
+                ErrorOr<bool> allow_ssl23 =
+                    settings.get_noexcept("net/allow_ssl23", false);
+                if (!allow_ssl23) {
+                    Error err = ValueError();
+                    err.context = r;
+                    bufferevent_free(r->connected_bev);
+                    callback(err, nullptr);
+                    return;
+                }
+                if (*allow_ssl23 == true) {
+                    logger->info("Re-enabling SSLv2 and SSLv3");
+                    SSL_clear_options(*cssl, SSL_OP_NO_SSLv2|SSL_OP_NO_SSLv3);
+                }
                 connect_ssl(r->connected_bev, *cssl, address,
                             [r, callback, timeout, ssl_context, reactor,
-                             logger](Error err, bufferevent *bev) {
+                             logger, settings](Error err, bufferevent *bev) {
                                 if (err) {
                                     err.context = r;
                                     callback(err, nullptr);
                                     return;
+                                }
+                                ErrorOr<bool> allow_dirty_shutdown =
+                                    settings.get_noexcept(
+                                        "net/ssl_allow_dirty_shutdown", false);
+                                if (!allow_dirty_shutdown) {
+                                    Error err = allow_dirty_shutdown.as_error();
+                                    err.context = r;
+                                    bufferevent_free(bev);
+                                    callback(err, nullptr);
+                                    return;
+                                }
+                                if (*allow_dirty_shutdown == true) {
+                                    /*
+                                     * This useful libevent function is only
+                                     * available since libevent 2.1.0:
+                                     */
+#ifdef HAVE_BUFFEREVENT_OPENSSL_SET_ALLOW_DIRTY_SHUTDOWN
+                                    bufferevent_openssl_set_allow_dirty_shutdown(
+                                        bev, 1);
+                                    logger->info("Allowing dirty SSL shutdown");
+#else
+                                    logger->warn("Cannot tell libevent to "
+                                                 "allow SSL dirty shutdowns "
+                                                 "as requested by the "
+                                                 "programmer: as a result"
+                                                 "some SSL connections may "
+                                                 "interrupt abruptly with an "
+                                                 "error. This happens because "
+                                                 "you are not using version "
+                                                 "2.1.x of libevent.");
+#endif
                                 }
                                 Var<Transport> txp =
                                     libevent::Connection::make(

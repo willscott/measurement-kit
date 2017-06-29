@@ -3,7 +3,7 @@
 // information on the copying conditions.
 
 #define CATCH_CONFIG_MAIN
-#include "../src/libmeasurement_kit/ext/catch.hpp"
+#include "private/ext/catch.hpp"
 
 #include <measurement_kit/common.hpp>
 
@@ -112,7 +112,7 @@ TEST_CASE("We pass MK_LOG_EVENT only to event-handler if it is set") {
     auto log_called = false;
     auto eh_called = false;
     logger->on_log([&](uint32_t, const char *) {
-        log_called = true;
+        log_called = true; /* We should not enter here */
     });
     logger->on_event([&](const char *s) {
         REQUIRE(s == std::string{"{}"});

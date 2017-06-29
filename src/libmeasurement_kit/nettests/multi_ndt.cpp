@@ -2,10 +2,12 @@
 // Measurement-kit is free software. See AUTHORS and LICENSE for more
 // information on the copying conditions.
 
+#include "private/nettests/runnable.hpp"
+
 #include <measurement_kit/nettests.hpp>
 #include <measurement_kit/ndt.hpp>
 
-#include "../ndt/utils.hpp"
+#include "private/ndt/utils.hpp"
 
 namespace mk {
 namespace nettests {
@@ -67,7 +69,12 @@ void MultiNdtRunnable::main(std::string, Settings ndt_settings,
 
     Var<report::Entry> ndt_entry(new report::Entry);
     (*ndt_entry)["failure"] = nullptr;
-    ndt_settings["test_suite"] = MK_NDT_DOWNLOAD;
+    // By default we only run download but let's allow clients to decide
+    if (ndt_settings.count("single_test_suite") != 0) {
+        ndt_settings["test_suite"] = ndt_settings["single_test_suite"];
+    } else {
+        ndt_settings["test_suite"] = MK_NDT_DOWNLOAD;
+    }
     logger->set_progress_offset(0.15);
     logger->set_progress_scale(0.35);
     logger->progress(0.0, "Starting single-stream test");

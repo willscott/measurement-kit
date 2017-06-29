@@ -6,15 +6,17 @@
 #include <math.h>
 
 #include <iomanip>
+#include <random>
 
 #include <event2/util.h>
 #include <openssl/sha.h>
 
-#include "../common/utils_impl.hpp"
+#include "private/common/utils_impl.hpp"
 
 namespace mk {
 
 void timeval_now(timeval *tv) {
+    *tv = {};
     if (gettimeofday(tv, nullptr) != 0) {
         throw std::runtime_error("gettimeofday()");
     }
@@ -28,9 +30,19 @@ double time_now() {
 }
 
 void utc_time_now(struct tm *utc) {
-    time_t tv;
+    time_t tv = {};
     tv = time(nullptr);
     gmtime_r(&tv, utc);
+}
+
+Error parse_iso8601_utc(std::string ts, std::tm *tmb) {
+    *tmb = {}; // "portable programs should initialize the structure"
+    std::istringstream ss(ts);
+    ss >> std::get_time(tmb, "%Y-%m-%dT%H:%M:%SZ");
+    if (ss.fail()) {
+        return ValueError();
+    }
+    return NoError();
 }
 
 ErrorOr<std::string> timestamp(const struct tm *t) {
@@ -150,6 +162,10 @@ ErrorOr<std::string> slurp(std::string path) {
     return s;
 }
 
+Error overwrite_file(std::string path, std::string content) {
+    return overwrite_file_impl(path, content);
+}
+
 bool startswith(std::string s, std::string p) {
     return s.find(p) == 0;
 }
@@ -165,5 +181,26 @@ bool startswith(std::string s, std::string p) {
 bool endswith(std::string s, std::string p) {
     return s.size() >= p.size() ? s.rfind(p) == (s.size() - p.size()) : false;
 }
+
+std::string random_choice(std::vector<std::string> inputs) {
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(inputs.begin(), inputs.end(), g);
+    return inputs[0];
+}
+
+std::string randomly_capitalize(std::string input) {
+    std::random_device rd;
+    std::mt19937 g(rd());
+    for (auto &c: input) {
+        if (g() % 2 == 0) {
+            c = toupper(c);
+        } else {
+            c = tolower(c);
+        }
+    }
+    return input;
+}
+
 
 } // namespace mk

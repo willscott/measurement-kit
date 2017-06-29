@@ -2,8 +2,8 @@
 // Measurement-kit is free software. See AUTHORS and LICENSE for more
 // information on the copying conditions.
 
-#include "../http/request_impl.hpp"
-#include "../common/utils.hpp"
+#include "private/http/request_impl.hpp"
+#include "private/common/utils.hpp"
 
 namespace mk {
 namespace http {
@@ -65,13 +65,17 @@ void Request::serialize(net::Buffer &buff, Var<Logger> logger) {
     for (auto kv : headers) {
         buff << kv.first << ": " << kv.second << "\r\n";
     }
-    buff << "Host: " << url.address;
-    if ((url.schema == "http" and url.port != 80) or
-         (url.schema == "https" and url.port != 443)) {
-        buff << ":";
-        buff << std::to_string(url.port);
+    // if the host: header is passed explicitly,
+    // don't construct it again here.
+    if (headers.find("host") == headers.end()) {
+        buff << "Host: " << url.address;
+        if ((url.schema == "http" and url.port != 80) or
+            (url.schema == "https" and url.port != 443)) {
+            buff << ":";
+            buff << std::to_string(url.port);
+        }
+        buff << "\r\n";
     }
-    buff << "\r\n";
     if (body != "") {
         buff << "Content-Length: " << std::to_string(body.length()) << "\r\n";
     }
@@ -150,7 +154,8 @@ void request_recv_response(Var<Transport> txp,
         txp->emit_error(NoError());
     });
     txp->on_error([=](Error err) {
-        logger->debug("Received error %d on connection", err.code);
+        logger->debug("Received error %s on connection",
+                      err.as_ooni_error().c_str());
         if (err == EofError() && *valid_response == true) {
             // Calling parser->on_eof() could trigger parser->on_end() and
             // we don't want this function to call ->emit_error()
@@ -310,6 +315,32 @@ void request(Settings settings, Headers headers, std::string body,
 bool HeadersComparator::operator() (
         const std::string &l, const std::string &r) const {
     return strcasecmp(l.c_str(), r.c_str()) < 0;
+}
+
+void request_json_string(
+      std::string method, std::string url, std::string data,
+      http::Headers headers,
+      Callback<Error, Var<http::Response>, nlohmann::json> cb,
+      Settings settings, Var<Reactor> reactor, Var<Logger> logger) {
+    request_json_string_impl(method, url, data, headers, cb, settings, reactor,
+                             logger);
+}
+
+void request_json_no_body(
+      std::string method, std::string url, http::Headers headers,
+      Callback<Error, Var<http::Response>, nlohmann::json> cb,
+      Settings settings, Var<Reactor> reactor, Var<Logger> logger) {
+    request_json_string(method, url, "", headers, cb, settings, reactor,
+                        logger);
+}
+
+void request_json_object(
+      std::string method, std::string url, nlohmann::json jdata,
+      http::Headers headers,
+      Callback<Error, Var<http::Response>, nlohmann::json> cb,
+      Settings settings, Var<Reactor> reactor, Var<Logger> logger) {
+    request_json_string(method, url, jdata.dump(), headers, cb, settings,
+                        reactor, logger);
 }
 
 } // namespace http

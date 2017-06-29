@@ -3,10 +3,10 @@
 // information on the copying conditions.
 
 #define CATCH_CONFIG_MAIN
-#include "../src/libmeasurement_kit/ext/catch.hpp"
+#include "private/ext/catch.hpp"
 
 #include <cctype>
-#include "../src/libmeasurement_kit/common/utils_impl.hpp"
+#include "private/common/utils_impl.hpp"
 
 TEST_CASE("We are NOT using the default random seed") {
     // Note: the default random generator shall be seeded using 1 unless
@@ -40,7 +40,7 @@ TEST_CASE("random_str() really generates only characters or numbers") {
         } else if (islower(x)) {
             found_low = true;
         } else {
-            REQUIRE(false);
+            REQUIRE(false); /* Should not happen */
         }
     }
     REQUIRE(found_num);
@@ -57,7 +57,7 @@ TEST_CASE("random_str_uppercase() really generates only uppercase") {
         } else if (isupper(x)) {
             found_upper = true;
         } else {
-            REQUIRE(false);
+            REQUIRE(false); /* Should not happen */
         }
     }
     REQUIRE(found_num);
@@ -304,6 +304,32 @@ TEST_CASE("slurp() works as expected") {
     }
 }
 
+static size_t fwrite_fail(const void *, size_t, size_t, FILE *) { return 0; }
+
+TEST_CASE("mk::overwrite_file() works as expected") {
+    SECTION("If fopen() fails") {
+        REQUIRE((mk::overwrite_file_impl<fopen_fail>("xx", "xyz")) !=
+                mk::NoError());
+    }
+    SECTION("If fwrite() fails") {
+        REQUIRE((mk::overwrite_file_impl<std::fopen, fwrite_fail>(
+                      "xx", "xyz")) != mk::NoError());
+    }
+    SECTION("If fclose() fails") {
+        REQUIRE((mk::overwrite_file_impl<std::fopen, std::fwrite, fclose_fail>(
+                      "xx", "xyz")) != mk::NoError());
+    }
+    SECTION("If everything is okay") {
+        REQUIRE(mk::overwrite_file("xx", "xyz") == mk::NoError());
+        REQUIRE(*mk::slurp("xx") == "xyz");
+    }
+    SECTION("Make sure file is actually overwritten") {
+        REQUIRE(mk::overwrite_file("xx", "xyz") == mk::NoError());
+        REQUIRE(mk::overwrite_file("xx", "abc") == mk::NoError());
+        REQUIRE(*mk::slurp("xx") == "abc");
+    }
+}
+
 TEST_CASE("mk::startswith() works as expected") {
     SECTION("For empty s and p") {
         REQUIRE(!!mk::startswith("", ""));
@@ -344,5 +370,49 @@ TEST_CASE("mk::endswith() works as expected") {
     // #TrueStory: this has been an embarassing bug
     SECTION("For p present in s but not at s's end") {
         REQUIRE(!mk::endswith("antanix", "tan"));
+    }
+}
+
+TEST_CASE("random_choice isn't obviously wrong") {
+    std::vector<std::string> choices = {"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"};
+    auto choice = mk::random_choice(choices);
+    REQUIRE(std::find(choices.begin(), choices.end(), choice) != choices.end());
+}
+
+TEST_CASE("randomly_capitalize isn't obviously wrong") {
+    auto lower_string = "abcdefghij";
+    auto upper_string = "ABCDEFGHIJ";
+    auto rc_lower_string = mk::randomly_capitalize(lower_string);
+    REQUIRE(rc_lower_string != lower_string);
+    auto rc_upper_string = mk::randomly_capitalize(upper_string);
+    REQUIRE(rc_upper_string != upper_string);
+}
+
+
+TEST_CASE("parse_iso8601_utc works as expected") {
+    SECTION("For valid input") {
+        std::tm t;
+        auto e = mk::parse_iso8601_utc("2012-01-02T03:04:05Z", &t);
+        REQUIRE(!e);
+        REQUIRE(t.tm_sec == 5);
+        REQUIRE(t.tm_min == 4);
+        REQUIRE(t.tm_hour == 3);
+        REQUIRE(t.tm_mday == 2);
+        REQUIRE(t.tm_mon == 0);
+        REQUIRE(t.tm_year == 112);
+    }
+
+    SECTION("For invalid input") {
+        std::tm t;
+        auto e = mk::parse_iso8601_utc("2012-01-02 03:04:05Z", &t);
+        REQUIRE(!!e);
+        REQUIRE(e == mk::ValueError());
+    }
+
+    SECTION("For no input") {
+        std::tm t;
+        auto e = mk::parse_iso8601_utc("", &t);
+        REQUIRE(!!e);
+        REQUIRE(e == mk::ValueError());
     }
 }

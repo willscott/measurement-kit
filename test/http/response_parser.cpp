@@ -3,9 +3,9 @@
 // information on the copying conditions.
 
 #define CATCH_CONFIG_MAIN
-#include "../src/libmeasurement_kit/ext/catch.hpp"
+#include "private/ext/catch.hpp"
 
-#include "../src/libmeasurement_kit/http/response_parser.hpp"
+#include "private/http/response_parser.hpp"
 
 using namespace mk;
 using namespace mk::net;
@@ -31,7 +31,7 @@ TEST_CASE("ResponseParserNg deals with an UPGRADE request") {
     std::string data;
 
     data = "";
-    data += "HTTP/1.1 200 Ok\r\n";
+    data += "HTTP/1.1 101 Switching Protocols\r\n";
     data += "Content-Type: text/plain\r\n";
     data += "Connection: upgrade\r\n";
     data += "Upgrade: websockets\r\n";

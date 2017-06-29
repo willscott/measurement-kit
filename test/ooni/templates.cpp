@@ -5,7 +5,7 @@
 #ifdef ENABLE_INTEGRATION_TESTS
 
 #define CATCH_CONFIG_MAIN
-#include "../src/libmeasurement_kit/ext/catch.hpp"
+#include "private/ext/catch.hpp"
 
 #include <measurement_kit/ooni.hpp>
 
@@ -58,8 +58,9 @@ TEST_CASE("dns query template works as expected") {
                         REQUIRE(answers.is_array());
                         break_loop();
                     },
-                    {{"dns/timeout", 0.3}, {"dns/attempts", 1}});
-            });
+                    {{"dns/timeout", 0.3}, {"dns/attempts", 1},
+                     {"dns/engine", "libevent"}});
+            }, {{"dns/engine", "libevent"}});
     });
 }
 
