@@ -64,6 +64,7 @@ class BaseTest {
         _name_();                                                              \
     }
 
+MK_DECLARE_TEST(CaptivePortalTest);
 MK_DECLARE_TEST(DnsInjectionTest);
 MK_DECLARE_TEST(HttpHeaderFieldManipulationTest);
 MK_DECLARE_TEST(HttpInvalidRequestLineTest);
