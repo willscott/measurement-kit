@@ -9,7 +9,6 @@
 #include <measurement_kit/common/callback.hpp>
 #include <measurement_kit/common/detail/delegate.hpp>
 #include <measurement_kit/common/detail/json.hpp>
-#include <measurement_kit/common/detail/locked.hpp>
 #include <measurement_kit/common/logger.hpp>
 #include <measurement_kit/common/non_copyable.hpp>
 #include <measurement_kit/common/non_movable.hpp>
@@ -239,10 +238,8 @@ class DefaultLogger : public Logger, public NonCopyable, public NonMovable {
 }
 
 /*static*/ SharedPtr<Logger> Logger::global() {
-    return locked_global([]() {
-        static SharedPtr<Logger> singleton = Logger::make();
-        return singleton;
-    });
+    static SharedPtr<Logger> singleton = Logger::make();
+    return singleton;
 }
 
 Logger::~Logger() {}

@@ -23,6 +23,7 @@ class Settings : public std::map<std::string, Scalar> {
     }
 
     XX(Type, get, as)
+
     XX(ErrorOr<Type>, get_noexcept, as_noexcept)
 
 #undef XX

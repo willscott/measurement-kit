@@ -21,7 +21,6 @@
 #include <event2/util.h>                            // for evutil_socket_t
 #include <functional>                               // for std::function
 #include <measurement_kit/common/callback.hpp>      // for mk::Callback
-#include <measurement_kit/common/detail/locked.hpp> // for mk::locked_global
 #include <measurement_kit/common/detail/mock.hpp>   // for MK_MOCK
 #include <measurement_kit/common/detail/utils.hpp>  // for mk::timeval_init
 #include <measurement_kit/common/detail/worker.hpp> // for mk::Worker
@@ -32,6 +31,7 @@
 #include <measurement_kit/common/reactor.hpp>       // for mk::Reactor
 #include <measurement_kit/common/socket.hpp>        // for mk::socket_t
 #include <memory>                                   // for std::unique_ptr
+#include <mutex>                                    // for std::mutex
 #include <signal.h>                                 // for sigaction
 #include <stdexcept>                                // for std::runtime_error
 #include <system_error>                             // for std::error_condition
@@ -76,22 +76,22 @@ class Reactor : public mk::Reactor, public NonCopyable, public NonMovable {
 
     template <MK_MOCK(evthread_use_pthreads), MK_MOCK(sigaction)>
     static inline void libevent_init_once() {
-        return locked_global([]() {
-            static bool initialized = false;
-            if (initialized) {
-                return;
-            }
-            mk::debug("initializing libevent once");
-            if (evthread_use_pthreads() != 0) {
-                throw std::runtime_error("evthread_use_pthreads");
-            }
-            struct sigaction sa{};
-            sa.sa_handler = SIG_IGN;
-            if (sigaction(SIGPIPE, &sa, nullptr) != 0) {
-                throw std::runtime_error("sigaction");
-            }
-            initialized = true;
-        });
+        static std::recursive_mutex mutex;
+        static bool initialized = false;
+        std::unique_lock<std::recursive_mutex> _{mutex};
+        if (initialized) {
+            return;
+        }
+        mk::debug("initializing libevent once");
+        if (evthread_use_pthreads() != 0) {
+            throw std::runtime_error("evthread_use_pthreads");
+        }
+        struct sigaction sa{};
+        sa.sa_handler = SIG_IGN;
+        if (sigaction(SIGPIPE, &sa, nullptr) != 0) {
+            throw std::runtime_error("sigaction");
+        }
+        initialized = true;
     }
 
     // ### Event loop
@@ -165,8 +165,8 @@ class Reactor : public mk::Reactor, public NonCopyable, public NonMovable {
 
     Worker worker;
 
-    void run_in_background_thread(Callback<> &&cb) override {
-        worker.run_in_background_thread(std::move(cb));
+    void call_in_thread(Callback<> &&cb) override {
+        worker.call_in_thread(std::move(cb));
     }
 
     void call_soon(Callback<> &&cb) override { call_later(0.0, std::move(cb)); }

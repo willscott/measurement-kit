@@ -19,12 +19,12 @@
 #include "private/net/builtin_ca_bundle.hpp"
 #include <cassert>
 #include <map>
-#include <measurement_kit/common/detail/locked.hpp>
 #include <measurement_kit/common/detail/mock.hpp>
 #include <measurement_kit/common/logger.hpp>
 #include <measurement_kit/common/non_copyable.hpp>
 #include <measurement_kit/common/non_movable.hpp>
 #include <measurement_kit/net/error.hpp>
+#include <mutex>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <string>
@@ -35,17 +35,17 @@ namespace libssl {
 
 /// Initialize the SSL library
 static inline void libssl_init_once(SharedPtr<Logger> logger) {
-    locked_global([logger]() {
-        static bool initialized = false;
-        if (!initialized) {
-            logger->debug2("initializing libssl once");
-            SSL_library_init();
-            ERR_load_crypto_strings();
-            SSL_load_error_strings();
-            OpenSSL_add_all_algorithms();
-            initialized = true;
-        }
-    });
+    static std::recursive_mutex mutex;
+    static bool initialized = false;
+    std::unique_lock<std::recursive_mutex> _{mutex};
+    if (!initialized) {
+        logger->debug2("initializing libssl once");
+        SSL_library_init();
+        ERR_load_crypto_strings();
+        SSL_load_error_strings();
+        OpenSSL_add_all_algorithms();
+        initialized = true;
+    }
 }
 
 /*!

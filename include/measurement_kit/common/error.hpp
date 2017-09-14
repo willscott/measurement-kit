@@ -11,35 +11,27 @@ namespace mk {
 
 class Error : public std::exception {
   public:
-    Error() : Error(0, "") {}
+    Error();
 
-    Error(int e) : Error(e, "") {}
+    Error(int ec);
 
-    Error(int e, std::string r) : code{e}, reason{r} {
-        if (code != 0 && reason == "") {
-            reason = "unknown_failure " + std::to_string(code);
-        }
-    }
+    Error(int ec, std::string reason);
 
-    Error(int e, std::string r, const Error &c) : Error(e, r) {
-        child_errors.push_back(c);
-    }
+    Error(int e, std::string r, const Error &c);
 
-    operator bool() const { return code != 0; }
+    operator bool() const;
 
-    bool operator==(int n) const { return code == n; }
+    bool operator==(int n) const;
 
-    bool operator==(Error e) const { return code == e.code; }
+    bool operator==(Error e) const;
 
-    bool operator!=(int n) const { return code != n; }
+    bool operator!=(int n) const;
 
-    bool operator!=(Error e) const { return code != e.code; }
+    bool operator!=(Error e) const;
 
-    const char *what() const noexcept override { return reason.c_str(); }
+    const char *what() const noexcept override;
 
-    void add_child_error(const Error &err) {
-        child_errors.push_back(err);
-    }
+    void add_child_error(const Error &err);
 
     std::vector<Error> child_errors;
     int code = 0;
@@ -90,10 +82,7 @@ MK_DEFINE_ERR(16, TimeoutError, "generic_timeout_error")
 
 namespace std {
 
-inline std::ostream &operator<<(std::ostream &os, const mk::Error &value) {
-    os << value.reason;
-    return os;
-}
+std::ostream &operator<<(std::ostream &os, const mk::Error &value);
 
 } // namespace std
 #endif

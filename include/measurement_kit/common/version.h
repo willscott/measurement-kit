@@ -16,8 +16,11 @@ extern "C" {
 #endif
 
 const char *mk_version(void);
+
 const char *mk_version_full(void);
+
 const char *mk_openssl_version(void);
+
 const char *mk_libevent_version(void);
 
 #ifdef __cplusplus

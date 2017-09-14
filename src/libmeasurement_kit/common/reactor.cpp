@@ -2,13 +2,13 @@
 // Measurement-kit is free software under the BSD license. See AUTHORS
 // and LICENSE for more information on the copying conditions.
 
-#include <measurement_kit/common/detail/locked.hpp>
 #include <measurement_kit/common/libevent/reactor.hpp>
 
 namespace mk {
 
 /*static*/ SharedPtr<Reactor> Reactor::make() {
-    return locked_global([]() { return SharedPtr<Reactor>{new libevent::Reactor<>}; });
+    return std::dynamic_pointer_cast<Reactor>(
+        std::make_shared<libevent::Reactor<>>());
 }
 
 Reactor::~Reactor() {}
@@ -19,10 +19,8 @@ void Reactor::run_with_initial_event(Callback<> &&cb) {
 }
 
 /*static*/ SharedPtr<Reactor> Reactor::global() {
-    return locked_global([]() {
-        static SharedPtr<Reactor> singleton = make();
-        return singleton;
-    });
+    static SharedPtr<Reactor> singleton = make();
+    return singleton;
 }
 
 } // namespace mk

@@ -70,7 +70,6 @@
 /test/common/freverse
 /test/common/json
 /test/common/libevent_reactor
-/test/common/locked
 /test/common/logger
 /test/common/maybe
 /test/common/parallel

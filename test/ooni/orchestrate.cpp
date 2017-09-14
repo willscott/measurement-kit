@@ -209,7 +209,7 @@ TEST_CASE("Orchestration works") {
      *
      * See also `test/nettests/utils.hpp`.
      */
-    Worker::default_tasks_queue()->wait_empty_();
+    Worker::default_tasks_queue().wait_empty_();
 }
 
 #endif
