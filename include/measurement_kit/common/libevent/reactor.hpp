@@ -76,9 +76,9 @@ class Reactor : public mk::Reactor, public NonCopyable, public NonMovable {
 
     template <MK_MOCK(evthread_use_pthreads), MK_MOCK(sigaction)>
     static inline void libevent_init_once() {
-        static std::recursive_mutex mutex;
+        static std::mutex mutex;
         static bool initialized = false;
-        std::unique_lock<std::recursive_mutex> _{mutex};
+        std::unique_lock<std::mutex> _{mutex};
         if (initialized) {
             return;
         }

@@ -16,16 +16,20 @@ namespace mk {
 template <typename T> class Delegate_ {
   public:
     Delegate_() {}
+
     template <typename F> Delegate_(F f) : func(f) {}
+
     Delegate_(std::function<T> f) : func(f) {}
 
     ~Delegate_() {}
 
     void operator=(std::function<T> f) { func = f; }
+
     template <typename F> void operator=(F f) { func = f; }
+
     void operator=(std::nullptr_t f) { func = f; }
 
-    // not implementing swap and assign
+    // Implementation note: not implementing swap and assign
 
     operator bool() { return static_cast<bool>(func); }
 

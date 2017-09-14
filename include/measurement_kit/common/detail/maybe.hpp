@@ -12,6 +12,7 @@ namespace mk {
 template <typename T> class Maybe {
   public:
     Maybe() {}
+
     Maybe(T &&t) : value_{std::move(t)}, valid_{true} {}
 
 #define DETAIL                                                                   \

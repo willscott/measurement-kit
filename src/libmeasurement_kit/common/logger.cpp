@@ -168,7 +168,7 @@ class DefaultLogger : public Logger, public NonCopyable, public NonMovable {
         progress_handler_ = fn;
     }
 
-    void set_logfile(std::string path) override {
+    void set_logfile(const std::string &path) override {
         std::unique_lock<std::recursive_mutex> _{mutex_};
         ofile_.reset(new std::ofstream(path));
         // TODO: what to do if we cannot open the logfile? return error?
@@ -264,7 +264,9 @@ void on_log(Callback<uint32_t, const char *> &&fn) {
     Logger::global()->on_log(std::move(fn));
 }
 
-void set_logfile(std::string path) { Logger::global()->set_logfile(path); }
+void set_logfile(const std::string &path) {
+    Logger::global()->set_logfile(path);
+}
 
 #undef XX
 

@@ -15,9 +15,9 @@ class Error : public std::exception {
 
     Error(int ec);
 
-    Error(int ec, std::string reason);
+    Error(int ec, const std::string &reason);
 
-    Error(int e, std::string r, const Error &c);
+    Error(int ec, const std::string &reason, const Error &child);
 
     operator bool() const;
 

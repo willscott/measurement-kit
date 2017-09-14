@@ -16,18 +16,16 @@ namespace mk {
 class Reactor {
   public:
     static SharedPtr<Reactor> make();
+
     static SharedPtr<Reactor> global();
+
     virtual ~Reactor();
 
     virtual void call_in_thread(Callback<> &&cb) = 0;
-    virtual void call_soon(Callback<> &&cb) = 0;
-    virtual void call_later(double, Callback<> &&cb) = 0;
 
-    /*
-        POSIX API for dealing with sockets. Slower than APIs in net,
-        especially under Windows, but suitable to integrate with other
-        async libraries such as c-ares and perhaps others.
-    */
+    virtual void call_soon(Callback<> &&cb) = 0;
+
+    virtual void call_later(double, Callback<> &&cb) = 0;
 
     virtual void pollin(socket_t sockfd, double timeout,
                         Callback<Error> &&cb) = 0;
@@ -38,7 +36,9 @@ class Reactor {
     virtual event_base *get_event_base() = 0;
 
     void run_with_initial_event(Callback<> &&cb);
+
     virtual void run() = 0;
+
     virtual void stop() = 0;
 };
 

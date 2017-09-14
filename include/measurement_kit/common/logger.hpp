@@ -60,7 +60,7 @@ class Logger {
 
     virtual void on_progress(Callback<double, const char *> &&fn) = 0;
 
-    virtual void set_logfile(std::string fpath) = 0;
+    virtual void set_logfile(const std::string &fpath) = 0;
 
     virtual void progress(double, const char *) = 0;
 
@@ -91,7 +91,7 @@ uint32_t get_verbosity();
 
 void on_log(Callback<uint32_t, const char *> &&fn);
 
-void set_logfile(std::string path);
+void set_logfile(const std::string &path);
 
 } // namespace mk
 #endif

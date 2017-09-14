@@ -35,9 +35,9 @@ namespace libssl {
 
 /// Initialize the SSL library
 static inline void libssl_init_once(SharedPtr<Logger> logger) {
-    static std::recursive_mutex mutex;
+    static std::mutex mutex;
     static bool initialized = false;
-    std::unique_lock<std::recursive_mutex> _{mutex};
+    std::unique_lock<std::mutex> _{mutex};
     if (!initialized) {
         logger->debug2("initializing libssl once");
         SSL_library_init();

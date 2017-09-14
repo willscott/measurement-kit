@@ -10,13 +10,13 @@ Error::Error() : Error(0, "") {}
 
 Error::Error(int e) : Error(e, "") {}
 
-Error::Error(int e, std::string r) : code{e}, reason{r} {
+Error::Error(int e, const std::string &r) : code{e}, reason{r} {
     if (code != 0 && reason == "") {
         reason = "unknown_failure " + std::to_string(code);
     }
 }
 
-Error::Error(int e, std::string r, const Error &c) : Error(e, r) {
+Error::Error(int e, const std::string &r, const Error &c) : Error(e, r) {
     child_errors.push_back(c);
 }
 

@@ -3,6 +3,7 @@
 // and LICENSE for more information on the copying conditions.
 
 #include <measurement_kit/common/detail/citrus_ctype.h>
+#include <measurement_kit/common/detail/encoding.hpp>
 #include <measurement_kit/common/error.hpp>
 
 #include <cassert>
