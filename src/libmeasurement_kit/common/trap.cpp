@@ -1,16 +1,13 @@
 // Part of measurement-kit <https://measurement-kit.github.io/>.
 // Measurement-kit is free software under the BSD license. See AUTHORS
 // and LICENSE for more information on the copying conditions.
-#ifndef MEASUREMENT_KIT_COMMON_DETAIL_SANDBOX_HPP
-#define MEASUREMENT_KIT_COMMON_DETAIL_SANDBOX_HPP
 
-#include <measurement_kit/common/detail/maybe.hpp>
-#include <measurement_kit/common/error.hpp>
+#include <measurement_kit/common/detail/trap.hpp>
 
 namespace mk {
 
-template <typename Callable> Error sandbox_for_errors(Callable fun) {
-    Error error = NoError();
+Error trap_errors(std::function<void()> &&fun) {
+    Error error;
     try {
         fun();
     } catch (const Error &exc) {
@@ -19,8 +16,7 @@ template <typename Callable> Error sandbox_for_errors(Callable fun) {
     return error;
 }
 
-template <typename Callable>
-Maybe<std::exception> sandbox_for_exceptions(Callable fun) {
+Maybe<std::exception> trap_exceptions(std::function<void()> &&fun) {
     try {
         fun();
     } catch (std::exception &exc) {
@@ -30,4 +26,3 @@ Maybe<std::exception> sandbox_for_exceptions(Callable fun) {
 }
 
 } // namespace mk
-#endif

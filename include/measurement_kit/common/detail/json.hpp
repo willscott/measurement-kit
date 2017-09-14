@@ -4,7 +4,7 @@
 #ifndef MEASUREMENT_KIT_COMMON_DETAIL_JSON_HPP
 #define MEASUREMENT_KIT_COMMON_DETAIL_JSON_HPP
 
-#include <measurement_kit/common/detail/sandbox.hpp>
+#include <measurement_kit/common/detail/trap.hpp>
 #include <measurement_kit/common/error.hpp>
 #include <measurement_kit/ext/json.hpp>
 
@@ -25,7 +25,7 @@ Error json_process(nlohmann::json &json, Callable &&fun) {
 
 template <typename Callable>
 Error json_process_and_filter_errors(nlohmann::json &json, Callable &&fun) {
-    return sandbox_for_errors([&]() {
+    return trap_errors([&]() {
         auto err = json_process(json, std::move(fun));
         if (err) {
             throw err;
@@ -46,7 +46,7 @@ Error json_parse_and_process(Stringlike str, Callable &&fun) {
 
 template <typename Stringlike, typename Callable>
 Error json_parse_process_and_filter_errors(Stringlike str, Callable &&fun) {
-    return sandbox_for_errors([&]() {
+    return trap_errors([&]() {
         auto err = json_parse_and_process(str, std::move(fun));
         if (err) {
             throw err;
